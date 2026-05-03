@@ -1,7 +1,7 @@
 // npm install lucide-react recharts firebase
 
 import React, { useState, useEffect } from 'react';
-import { Check, X, Home, ChevronRight, List, Play, RotateCcw, Save, AlertCircle } from 'lucide-react';
+import { Check, X, Home, ChevronRight, List, Play, RotateCcw, Save, AlertCircle, BookOpen } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
@@ -294,7 +294,6 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(false);
 
   // 初回匿名ログイン
   useEffect(() => {
