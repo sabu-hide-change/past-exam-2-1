@@ -1,24 +1,35 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
-  Play, 
-  RotateCcw, 
-  BookOpen, 
-  CheckSquare, 
-  ArrowRight,
-  List,
-  Trophy
-} from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+// npm install lucide-react recharts firebase
 
-// --- データ定義 (全10問: 2-1 財務諸表) ---
+import React, { useState, useEffect } from 'react';
+import { Check, X, Home, ChevronRight, List, Play, RotateCcw, Save, AlertCircle } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
-const problemData = [
+// --- Firebase Configuration ---
+// 本番環境の環境変数に合わせて設定してください
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const APP_ID = "QuizApp_001";
+
+// --- Quiz Data ---
+const quizData = [
   {
-    id: 1,
-    category: "計算書類",
+    id: "q1",
+    year: "令和元年 第5問",
+    title: "計算書類",
     question: "会社法上の計算書類に関する記述として、最も適切なものはどれか。",
     options: [
       "会社法上の計算書類には、株主資本等変動計算書は含まれない。",
@@ -26,18 +37,39 @@ const problemData = [
       "公開会社は、計算書類に加えて連結計算書類を作成し、定時株主総会に報告することが求められている。",
       "取締役会設置会社は、定時株主総会の招集の通知に際して、株主に計算書類を提供しなければならない。"
     ],
-    correctAnswer: 3,
-    explanation: `
-      <p class="font-bold mb-2">正解：エ</p>
-      <p class="mb-2"><strong>ア ×：</strong> 計算書類には「貸借対照表」「損益計算書」「株主資本等変動計算書」「個別注記表」の4つが含まれます。</p>
-      <p class="mb-2"><strong>イ ×：</strong> 財務諸表規則は「金融商品取引法」に基づく規則で、上場企業等が対象です。すべての会社法適用会社に義務付けられているわけではありません。</p>
-      <p class="mb-2"><strong>ウ ×：</strong> 連結計算書類の作成義務があるのは「大会社」かつ「有価証券報告書提出会社」等に限られます。単なる公開会社ではありません。</p>
-      <p class="mb-2 text-red-600"><strong>エ ○：</strong> 取締役会設置会社では、招集通知に際して計算書類（事業報告等を含む）を提供する義務があります。</p>
-    `
+    answerIndex: 3,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：エ</p>
+        <p>本問では、計算書類について問われています。株式会社は、会社法により計算書類（財務諸表）を作成することが義務付けられています。計算書類には、貸借対照表、損益計算書、株主資本等変動計算書、個別注記表があります。これらは、どんなに小さい企業であっても株式会社であれば作成が義務付けられています。さらに、取締役会設置会社では、定時株主総会の招集の通知に際して、株主に対し、計算書類及び事業報告（監査報告又は会計監査報告を含む）を提供しなければなりません。</p>
+        <p>選択肢アですが、株主資本等変動計算書は、会社法によりその作成が義務付けられています。よって、不適切です。</p>
+        <p>選択肢イですが、財務諸表規則は、金融商品取引法によって定められた規則であり、金融商品取引法が適用される上場会社のみ、その作成が義務付けられています。</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse border border-gray-400 mb-2">
+            <thead>
+              <tr className="bg-yellow-100">
+                <th className="border border-gray-400 p-2 text-center">会社法（計算書類）<br/>すべての株式会社が対象</th>
+                <th className="border border-gray-400 p-2 text-center">金融商品取引法（財務諸表規則）<br/>全ての上場会社が対象</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-gray-400 p-2">貸借対照表<br/>損益計算書<br/>株主資本等変動計算書<br/>個別注記表</td>
+                <td className="border border-gray-400 p-2">貸借対照表<br/>損益計算書<br/>株主資本等変動計算書<br/>キャッシュ・フロー計算書<br/>付属明細表</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>そのため、計算書類の作成と報告に当たり、財務諸表規則に準拠する必要のある会社は、上場している会社のみであり、不適切です。</p>
+        <p>選択肢ウですが、公開会社であっても子会社を持たない会社は存在します。子会社を持たない会社は連結決算が不要なため不適切です。</p>
+        <p>選択肢エですが、記述の通り取締役会設置会社では計算書類等の提供義務があります。よって適切です。</p>
+      </div>
+    )
   },
   {
-    id: 2,
-    category: "企業会計原則",
+    id: "q2",
+    year: "平成29年 第5問",
+    title: "企業会計原則",
     question: "企業会計原則に関する記述として、最も適切なものはどれか。",
     options: [
       "会計処理の原則および手続きを毎期継続して適用し、みだりに変更してはならない。",
@@ -45,18 +77,22 @@ const problemData = [
       "すべての費用および収益は、その支出および収入の時点において認識し、損益計算書に計上しなければならない。",
       "予測される将来の危険に備えて、合理的な見積額を上回る費用を計上することは、保守的な会計処理として認められる。"
     ],
-    correctAnswer: 0,
-    explanation: `
-      <p class="font-bold mb-2">正解：ア</p>
-      <p class="mb-2 text-red-600"><strong>ア ○：</strong> 「継続性の原則」に関する正しい記述です。</p>
-      <p class="mb-2"><strong>イ ×：</strong> 「単一性の原則」は、二重帳簿を禁止するものであり、目的によって形式の異なる財務諸表を作成すること自体（実質一元・形式多元）は認めています。</p>
-      <p class="mb-2"><strong>ウ ×：</strong> 費用は発生主義、収益は実現主義で認識します。「支出および収入の時点（現金主義）」ではありません。</p>
-      <p class="mb-2"><strong>エ ×：</strong> 過度に保守的な処理（利益操作につながる過大な引当金計上など）は認められません。</p>
-    `
+    answerIndex: 0,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ア</p>
+        <p>企業会計原則は、一般原則、損益計算書原則、貸借対照表原則の3つから構成されています。</p>
+        <p>選択肢アでは、「継続性の原則」について述べられています。企業会計原則の一般原則には、「企業会計は、その処理の原則および手続を毎期継続して適用し、みだりにこれを変更してはならない」と規定されています。よって適切です。</p>
+        <p>選択肢イでは、「単一性の原則」について述べられています。異なる形式の財務諸表を作成することを禁じるものではありません。実質一元、形式多元という表現で表されます。よって不適切です。</p>
+        <p>選択肢ウでは、「発生主義」について述べられています。費用は発生主義により、収益は実現主義により認識することを要請しています。よって不適切です。</p>
+        <p>選択肢エでは、「保守主義」について述べられています。合理的な見積額を上回る費用を計上することは、過度に保守的な会計処理であり認められません。よって不適切です。</p>
+      </div>
+    )
   },
   {
-    id: 3,
-    category: "無形固定資産",
+    id: "q3",
+    year: "令和2年 第8問",
+    title: "無形固定資産の会計",
     question: "無形固定資産の会計に関する記述として、最も適切なものはどれか。",
     options: [
       "自社が長年にわたり築き上げたブランドにより、同業他社に比べ高い収益性を獲得している場合には、これを無形固定資産に計上することができる。",
@@ -64,18 +100,36 @@ const problemData = [
       "受注制作のソフトウェアの制作費は、請負工事の会計処理に準じて処理され、無形固定資産に計上されない。",
       "のれんとして資産計上された金額は、最長10年にわたり、規則的に償却される。"
     ],
-    correctAnswer: 2,
-    explanation: `
-      <p class="font-bold mb-2">正解：ウ</p>
-      <p class="mb-2"><strong>ア ×：</strong> 自社創設のブランド（自己創設のれん）は資産計上できません。</p>
-      <p class="mb-2"><strong>イ ×：</strong> 研究開発費は発生時に費用処理します。資産への戻し入れは行いません。</p>
-      <p class="mb-2 text-red-600"><strong>ウ ○：</strong> 受注制作ソフトは、顧客への提供（請負）が目的なので、制作費は売上原価などで処理され、固定資産にはなりません。</p>
-      <p class="mb-2"><strong>エ ×：</strong> のれんの償却期間は最長20年です。</p>
-    `
+    answerIndex: 2,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ウ</p>
+        <p>「無形固定資産」とは、物理的な形が無い資産です。特許権など権利を表す資産や「のれん」などがあります。</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse border border-gray-400 mb-2">
+            <tbody>
+              <tr>
+                <td className="border border-gray-400 p-2 bg-orange-100 font-bold w-1/4">のれん</td>
+                <td className="border border-gray-400 p-2">企業の買収・合併などで発生する無形固定資産です。買収にかかった投資額と買収された企業の純資産の金額に差額が発生した場合、「のれん」という科目に計上します。</td>
+              </tr>
+              <tr>
+                <td className="border border-gray-400 p-2 bg-orange-100 font-bold">ソフトウェア</td>
+                <td className="border border-gray-400 p-2">自社で利用する目的のプログラムのことです。「ソフトウェア」には、取得にかかった金額から、償却額を差し引いた金額が表示されます。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>選択肢ア：自社が獲得している収益性のあるブランド等を無形固定資産に計上することは認められていません。不適切です。</p>
+        <p>選択肢イ：研究開発費は通常「一般管理費」として発生した期の費用に計上します。特許権を取得した場合でも過去の費用を戻し入れることはありません。不適切です。</p>
+        <p>選択肢ウ：受注制作のソフトウェアの制作費は、請負工事の会計処理に準じて処理され、無形固定資産に計上されません。適切です。</p>
+        <p>選択肢エ：「のれん」の償却は最長20年です。不適切です。</p>
+      </div>
+    )
   },
   {
-    id: 4,
-    category: "計算書類(財務諸表)",
+    id: "q4",
+    year: "令和5年 第5問",
+    title: "計算書類(財務諸表)",
     question: "会社法における計算書類の作成、開示に関する記述として、最も適切なものはどれか。",
     options: [
       "計算書類とは、貸借対照表、損益計算書、キャッシュ・フロー計算書および株主資本等変動計算書のことである。",
@@ -83,40 +137,46 @@ const problemData = [
       "すべての株式会社は、各事業年度に係る計算書類を作成しなければならない。",
       "すべての株式会社は、定時株主総会の終結後遅滞なく、貸借対照表と損益計算書を公告しなければならない。"
     ],
-    correctAnswer: 2,
-    explanation: `
-      <p class="font-bold mb-2">正解：ウ</p>
-      <p class="mb-2"><strong>ア ×：</strong> 会社法の計算書類に「キャッシュ・フロー計算書」は含まれません（金商法では必要）。</p>
-      <p class="mb-2"><strong>イ ×：</strong> 連結計算書類の作成は「大会社」等に限定されています。</p>
-      <p class="mb-2 text-red-600"><strong>ウ ○：</strong> すべての株式会社に計算書類（B/S, P/L, 株主資本等変動計算書, 個別注記表）の作成義務があります。</p>
-      <p class="mb-2"><strong>エ ×：</strong> 公告義務があるのは原則として「貸借対照表」のみです（大会社は損益計算書も必要）。</p>
-    `
+    answerIndex: 2,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ウ</p>
+        <p>選択肢アは不適切な記述です。計算書類にはキャッシュ・フロー計算書は含まれていません。</p>
+        <p>選択肢イは不適切な記述です。連結計算書類を作成する株式会社は、大会社のみであり、子会社を有するすべての株式会社ではありません。</p>
+        <p>選択肢ウは適切な記述です。株式会社では、各事業年度に係る計算書類及びその附属明細書を作成する必要があります。</p>
+        <p>選択肢エは不適切な記述です。株式会社であっても大会社以外の会社は、貸借対照表と損益計算書の両方の公告義務はなく、貸借対照表のみ公告義務があります。</p>
+      </div>
+    )
   },
   {
-    id: 5,
-    category: "資産・負債の部",
-    question: "A、B、C店は資産2,000万、負債500万、純資産1,500万の状態である。各店が800万で店舗増築を行った。\n・A店：全額現金払い\n・B店：半額借入、半額現金\n・C店：全額借入\n増築後の各店の財政状態として適切なものはどれか。",
+    id: "q5",
+    year: "令和4年 第2問",
+    title: "資産の部、負債の部",
+    question: "A、B、Cの各商店は、いずれも資産2,000万円、負債500万円を有する小売業であるが、あるとき各商店ともそれぞれ800万円で店舗を増築した。支払いの内訳は以下のとおりである。\n・A店は全額を自店の現金で支払った。\n・B店は建築費の半額を銀行より借り入れ、残額を自店の現金で支払った。\n・C店は全額、銀行からの借り入れであった。\n増築後の各商店の財政状態を示すものとして、最も適切なものはどれか。",
     options: [
-      "A:純資産1500 / B:純資産1100 / C:純資産1500",
-      "A:純資産1500 / B:純資産1500 / C:純資産1500",
-      "A:純資産2800 / B:純資産2400 / C:純資産2000",
-      "A:純資産1500 / B:純資産1500 / C:純資産2300"
+      "ア：A(資産2000, 負債500, 純資産1500), B(資産2000, 負債900, 純資産1100), C(資産2800, 負債1300, 純資産1500)",
+      "イ：A(資産2000, 負債500, 純資産1500), B(資産2400, 負債900, 純資産1500), C(資産2800, 負債1300, 純資産1500)",
+      "ウ：A(資産2800, 負債-, 純資産2800), B(資産2800, 負債400, 純資産2400), C(資産2800, 負債800, 純資産2000)",
+      "エ：A, B, C すべて (資産2800, 負債500/900/1300, 純資産1500)"
     ],
-    correctAnswer: 1,
-    explanation: `
-      <p class="font-bold mb-2">正解：イ</p>
-      <p class="mb-2">増築（資産の増加）とその支払手段によるB/Sの変化を考えます。</p>
-      <ul class="list-disc pl-5 space-y-2 mb-2">
-        <li><strong>A店（全額現金）：</strong> 固定資産+800、現金-800 → 資産総額変わらず、負債変わらず → <strong>純資産変わらず(1500)</strong></li>
-        <li><strong>B店（半額借入）：</strong> 固定資産+800、現金-400、借入+400 → 資産+400、負債+400 → <strong>純資産変わらず(1500)</strong></li>
-        <li><strong>C店（全額借入）：</strong> 固定資産+800、借入+800 → 資産+800、負債+800 → <strong>純資産変わらず(1500)</strong></li>
-      </ul>
-      <p class="font-bold text-blue-600 mt-2">結論：すべての店の純資産は1,500万のままです。</p>
-    `
+    answerIndex: 1,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：イ</p>
+        <p>増築前の純資産は 2,000万 - 500万 = 1,500万 です。</p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>A店: 800万の固定資産が増え、800万の現金が減る。資産合計は2,000万のまま。負債も500万のまま。純資産1,500万。</li>
+          <li>B店: 半額(400万)借入。負債は 500万 + 400万 = 900万。資産は 2,000万 + 400万(借入) + 800万(固定資産) - 800万(支払) = 2,400万。純資産1,500万。</li>
+          <li>C店: 全額(800万)借入。負債は 500万 + 800万 = 1,300万。資産は 2,000万 + 800万(借入) + 800万(固定資産) - 800万(支払) = 2,800万。純資産1,500万。</li>
+        </ul>
+        <p>以上より、正しい組み合わせはイとなります。</p>
+      </div>
+    )
   },
   {
-    id: 6,
-    category: "貸借対照表の表示",
+    id: "q6",
+    year: "令和5年 第8問",
+    title: "貸借対照表",
     question: "貸借対照表の表示に関する記述として、最も適切なものはどれか。",
     options: [
       "売掛金は、代金が回収されるまでの期間の長短にかかわらず流動資産に分類される。",
@@ -124,18 +184,21 @@ const problemData = [
       "棚卸資産は、決算日の翌日から起算して1年以内に販売されるものは流動資産に、1年を超えるものは固定資産に分類される。",
       "長期借入金は、時の経過により、返済期日が決算日の翌日から起算して1年以内となっても、固定負債に分類される。"
     ],
-    correctAnswer: 0,
-    explanation: `
-      <p class="font-bold mb-2">正解：ア</p>
-      <p class="mb-2 text-red-600"><strong>ア ○：</strong> 営業サイクル内にある資産（売掛金、棚卸資産など）は、「正常営業循環基準」により、期間に関わらず流動資産になります。</p>
-      <p class="mb-2"><strong>イ ×：</strong> 保有目的により、売買目的有価証券は流動、子会社株式などは固定資産になります。</p>
-      <p class="mb-2"><strong>ウ ×：</strong> 棚卸資産も正常営業循環基準により、原則としてすべて流動資産です。</p>
-      <p class="mb-2"><strong>エ ×：</strong> 1年基準（ワン・イヤー・ルール）により、期限が1年以内になった長期借入金は「流動負債」に振り替えます。</p>
-    `
+    answerIndex: 0,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ア</p>
+        <p>選択肢アは適切な記述です。売掛金は正常営業循環基準により、代金回収期間にかかわらず流動資産に分類されます。</p>
+        <p>選択肢イは不適切です。株式は保有目的によって固定資産に分類されることもあります。</p>
+        <p>選択肢ウは不適切です。棚卸資産も正常営業循環基準により流動資産に分類します。</p>
+        <p>選択肢エは不適切です。長期借入金は、返済期日が1年以内となった場合は「1年以内返済長期借入金」として流動負債に分類します。</p>
+      </div>
+    )
   },
   {
-    id: 7,
-    category: "固定資産",
+    id: "q7",
+    year: "令和4年 第5問",
+    title: "固定資産",
     question: "貸借対照表における無形固定資産に関する記述として、最も適切なものはどれか。",
     options: [
       "受注制作のソフトウェアについても償却を行う。",
@@ -143,442 +206,507 @@ const problemData = [
       "のれんは減損処理の対象となる。",
       "無形固定資産の償却には定額法と定率法がある。"
     ],
-    correctAnswer: 2,
-    explanation: `
-      <p class="font-bold mb-2">正解：ウ</p>
-      <p class="mb-2"><strong>ア ×：</strong> 受注制作ソフトは無形固定資産に計上されず（売上原価扱い）、償却もしません。</p>
-      <p class="mb-2"><strong>イ ×：</strong> 人的資産（従業員のスキルなど）は資産計上できません。</p>
-      <p class="mb-2 text-red-600"><strong>ウ ○：</strong> のれん等の無形固定資産も、収益性が低下した場合は減損会計の対象になります。</p>
-      <p class="mb-2"><strong>エ ×：</strong> 無形固定資産の償却は、原則として「定額法」のみです（定率法はありません）。</p>
-    `
+    answerIndex: 2,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ウ</p>
+        <p>選択肢アは不適切です。受注制作のソフトウェアの制作費は無形固定資産に計上されません。</p>
+        <p>選択肢イは不適切です。人的資産は客観的な評価ができないため無形固定資産に計上されません。</p>
+        <p>選択肢ウは適切な記述です。無形固定資産に属するのれん等は減損処理の対象となります。</p>
+        <p>選択肢エは不適切です。知的財産権等の無形固定資産の償却は、原則として定額法により償却します。</p>
+      </div>
+    )
   },
   {
-    id: 8,
-    category: "収益・費用の認識",
-    question: "セミナー事業（全10回、受講料50万、テキスト費25万）において、決算日までに6回終了した場合の収益・費用はいくらか。",
+    id: "q8",
+    year: "平成30年 第7問",
+    title: "収益と費用の認識基準",
+    question: "決算にあたり以下の一連の取引に対し計上される収益および費用の金額の組み合わせとして、最も適切なものを選べ。\n4月20日：7月開講予定のセミナー(全10回、50,000円/回)の受講料総額500,000円を現金で受け取った。\n5月30日：開講準備にあたり、全10回分のテキスト作成のため現金250,000円を支出した。\n12月31日(決算日)：全10回のセミナーのうち6回が終了していた。",
     options: [
       "収益：300,000円　費用：150,000円",
       "収益：300,000円　費用：250,000円",
       "収益：500,000円　費用：150,000円",
       "収益：500,000円　費用：250,000円"
     ],
-    correctAnswer: 0,
-    explanation: `
-      <p class="font-bold mb-2">正解：ア</p>
-      <p class="mb-2">実現主義（収益）と費用収益対応の原則に基づき、<strong>実施した6回分</strong>のみを計上します。</p>
-      <div class="grid grid-cols-2 gap-4 text-center mt-2">
-        <div class="bg-blue-50 p-2 rounded">
-          <p class="font-bold">収益</p>
-          <p>500,000 × (6/10)</p>
-          <p class="text-lg font-bold text-blue-600">= 300,000</p>
-        </div>
-        <div class="bg-red-50 p-2 rounded">
-          <p class="font-bold">費用</p>
-          <p>250,000 × (6/10)</p>
-          <p class="text-lg font-bold text-red-600">= 150,000</p>
-        </div>
+    answerIndex: 0,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ア</p>
+        <p>収益は「実現主義の原則」、費用は「発生主義の原則」「費用収益対応の原則」に基づきます。</p>
+        <p>12月31日の時点において、セミナーは6回分終了しているため、収益は 50,000円 × 6回 ＝ 300,000円 となります。</p>
+        <p>また、テキスト作成費は費用収益対応の原則に基づき、6回分に対応する部分だけ費用として計上します。250,000円 ÷ 10回 × 6回 ＝ 150,000円 となります。</p>
       </div>
-    `
+    )
   },
   {
-    id: 9,
-    category: "工事進行基準",
-    question: "工事収益総額240,000千円、工事原価総額180,000千円の工事で、1年目の発生原価が90,000千円だった場合、工事進行基準による1年目の工事収益はいくらか。",
+    id: "q9",
+    year: "平成29年 第4問",
+    title: "会計基準の計算",
+    question: "20X1年度に工事契約を締結し開始。20X3年度に完成。工事収益は工事進行基準、工事進捗度は原価比例法。工事収益総額は240,000千円、当初の工事原価総額見積額は180,000千円。\n20X1年の工事原価: 90,000千円、次期から完成までの見積額: 90,000千円\n20X1年度の工事収益として最も適切なものはどれか。",
     options: [
       "90,000千円",
       "108,000千円",
       "120,000千円",
       "180,000千円"
     ],
-    correctAnswer: 2,
-    explanation: `
-      <p class="font-bold mb-2">正解：ウ</p>
-      <p class="mb-2"><strong>① 進捗度の計算（原価比例法）：</strong></p>
-      <p class="mb-2 pl-4">発生原価(90,000) ÷ 総原価(180,000) = <strong>50%</strong></p>
-      <p class="mb-2"><strong>② 工事収益の計算：</strong></p>
-      <p class="mb-2 pl-4">収益総額(240,000) × 50% = <span class="text-xl font-bold text-blue-600">120,000千円</span></p>
-    `
+    answerIndex: 2,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：ウ</p>
+        <p>原価比例法による工事進捗度 ＝ 決算日までに発生した工事原価累計額 ÷ 工事原価総額</p>
+        <p>20X1年の工事進捗度 ＝ 90,000 ÷ 180,000 ＝ 50%</p>
+        <p>20X1年における工事収益 ＝ 工事収益総額 240,000 × 50% ＝ 120,000千円</p>
+      </div>
+    )
   },
   {
-    id: 10,
-    category: "株主資本",
-    question: "前期末純資産:60,900千円。当期変動として「配当:△6,000」「当期純利益:9,600」があった場合、当期末の純資産合計はいくらか。（別途積立金への振替などは純資産内での移動とする）",
+    id: "q10",
+    year: "平成25年 第3問",
+    title: "株主資本",
+    question: "株主資本等変動計算書に基づいて、当期末純資産合計として最も適切なものを選べ。\n前期末残高 純資産合計: 60,900千円\n当期変動額 剰余金の配当: 利益剰余金合計 △6,000\n当期純利益: 利益剰余金合計 9,600",
     options: [
       "56,000千円",
       "59,100千円",
       "60,900千円",
       "64,500千円"
     ],
-    correctAnswer: 3,
-    explanation: `
-      <p class="font-bold mb-2">正解：エ</p>
-      <p class="mb-2">純資産の変動額を計算します。</p>
-      <ul class="list-disc pl-5 mb-2">
-        <li>配当による減少： <strong>△6,000</strong></li>
-        <li>当期純利益による増加： <strong>+9,600</strong></li>
-        <li>（積立金などは純資産内部の移動なので合計額は変わりません）</li>
-      </ul>
-      <div class="bg-gray-100 p-3 rounded text-center">
-        <p>前期末(60,900) - 6,000 + 9,600</p>
-        <p class="text-xl font-bold text-blue-600 mt-1">= 64,500千円</p>
+    answerIndex: 3,
+    explanation: (
+      <div className="space-y-4 text-sm">
+        <p>解答：エ</p>
+        <p>当期末純資産合計 ＝ 前期末残高 ＋ 当期変動額合計</p>
+        <p>当期変動額合計 ＝ 剰余金の配当(△6,000) ＋ 当期純利益(9,600) ＝ 3,600</p>
+        <p>当期末純資産合計 ＝ 60,900 ＋ 3,600 ＝ 64,500千円</p>
       </div>
-    `
+    )
   }
 ];
 
-// --- コンポーネント実装 ---
-
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('menu'); // 'menu', 'quiz', 'result'
-  const [quizMode, setQuizMode] = useState('all'); // 'all', 'wrong', 'review'
-  const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
-  const [filteredProblems, setFilteredProblems] = useState([]);
-  const [userAnswers, setUserAnswers] = useState({}); // { problemId: { answerIndex, isCorrect, timestamp } }
-  const [reviewFlags, setReviewFlags] = useState({}); // { problemId: boolean }
-  const [showExplanation, setShowExplanation] = useState(false);
+  const [view, setView] = useState('login'); // login, loading, start, resume, quiz, history, result
+  const [userId, setUserId] = useState('');
+  const [inputKey, setInputKey] = useState('');
+  const [userHistory, setUserHistory] = useState({});
+  const [progressIndex, setProgressIndex] = useState(0);
+  const [progressMode, setProgressMode] = useState('');
+  const [currentMode, setCurrentMode] = useState('all');
+  const [filteredQuestions, setFilteredQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
-  // 初期ロード (localStorageキーを 'app_financial_2_1_new' に設定)
+  // 初回匿名ログイン
   useEffect(() => {
-    const savedAnswers = JSON.parse(localStorage.getItem('app_financial_2_1_new_answers')) || {};
-    const savedReviews = JSON.parse(localStorage.getItem('app_financial_2_1_new_reviews')) || {};
-    setUserAnswers(savedAnswers);
-    setReviewFlags(savedReviews);
+    const initAuth = async () => {
+      try {
+        await signInAnonymously(auth);
+        console.log("Anonymous auth successful");
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
+    };
+    initAuth();
   }, []);
 
-  // 保存
-  useEffect(() => {
-    localStorage.setItem('app_financial_2_1_new_answers', JSON.stringify(userAnswers));
-    localStorage.setItem('app_financial_2_1_new_reviews', JSON.stringify(reviewFlags));
-  }, [userAnswers, reviewFlags]);
+  const handleLogin = async () => {
+    if (!inputKey.trim()) return;
+    setView('loading');
+    setUserId(inputKey);
+    try {
+      const docRef = doc(db, `${APP_ID}_Users`, inputKey);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserHistory(data.history || {});
+        
+        const savedIndex = data.progressIndex || 0;
+        const savedMode = data.progressMode || '';
+        
+        if (savedIndex > 0 && savedMode) {
+          setProgressIndex(savedIndex);
+          setProgressMode(savedMode);
+          console.log("Found saved progress:", { index: savedIndex, mode: savedMode });
+          setView('resume');
+        } else {
+          setView('start');
+        }
+      } else {
+        setUserHistory({});
+        setView('start');
+      }
+      console.log("Login successful, history loaded");
+    } catch (e) {
+      console.error("Fetch error:", e);
+      setUserHistory({});
+      setView('start');
+    }
+  };
 
-  // 問題セットアップ
-  const startQuiz = (mode) => {
-    let targets = [];
+  const syncData = async (newHistory, pIndex = null, pMode = null) => {
+    if (!userId) return;
+    try {
+      const docRef = doc(db, `${APP_ID}_Users`, userId);
+      const updateData = { history: newHistory || userHistory };
+      if (pIndex !== null) updateData.progressIndex = pIndex;
+      if (pMode !== null) updateData.progressMode = pMode;
+      
+      await setDoc(docRef, updateData, { merge: true });
+      console.log("Data synced:", updateData);
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
+  const startQuiz = (mode, startIndex = 0) => {
+    let list = [];
     if (mode === 'all') {
-      targets = problemData;
+      list = quizData;
     } else if (mode === 'wrong') {
-      targets = problemData.filter(p => {
-        const hist = userAnswers[p.id];
-        return hist && !hist.isCorrect;
-      });
+      list = quizData.filter(q => userHistory[q.id]?.status === 'incorrect');
     } else if (mode === 'review') {
-      targets = problemData.filter(p => reviewFlags[p.id]);
+      list = quizData.filter(q => userHistory[q.id]?.needsReview === true);
     }
 
-    if (targets.length === 0) {
-      alert("対象となる問題がありません。");
+    if (list.length === 0) {
+      alert("該当する問題がありません。");
       return;
     }
 
-    setQuizMode(mode);
-    setFilteredProblems(targets);
-    setCurrentProblemIndex(0);
-    setShowExplanation(false);
+    setCurrentMode(mode);
+    setFilteredQuestions(list);
+    setCurrentIndex(startIndex);
     setSelectedOption(null);
-    setCurrentScreen('quiz');
+    setShowExplanation(false);
+    setView('quiz');
   };
 
-  const handleAnswer = (optionIndex) => {
-    setSelectedOption(optionIndex);
-    const problem = filteredProblems[currentProblemIndex];
-    const isCorrect = optionIndex === problem.correctAnswer;
-    
-    // 記録更新
-    setUserAnswers(prev => ({
-      ...prev,
-      [problem.id]: {
-        answerIndex: optionIndex,
-        isCorrect: isCorrect,
-        timestamp: new Date().toISOString()
-      }
-    }));
-    
-    setShowExplanation(true);
-  };
-
-  const nextProblem = () => {
-    if (currentProblemIndex < filteredProblems.length - 1) {
-      setCurrentProblemIndex(prev => prev + 1);
-      setShowExplanation(false);
-      setSelectedOption(null);
+  const handleResume = (shouldResume) => {
+    if (shouldResume) {
+      startQuiz(progressMode, progressIndex);
     } else {
-      setCurrentScreen('result');
+      syncData(userHistory, 0, ''); // reset progress
+      setView('start');
     }
   };
 
-  const toggleReview = (problemId) => {
-    setReviewFlags(prev => {
-      const newVal = !prev[problemId];
-      return { ...prev, [problemId]: newVal };
-    });
+  const handleAnswer = (index) => {
+    if (showExplanation) return;
+    setSelectedOption(index);
+    setShowExplanation(true);
+
+    const currentQ = filteredQuestions[currentIndex];
+    const isCorrect = index === currentQ.answerIndex;
+    
+    const newHistory = {
+      ...userHistory,
+      [currentQ.id]: {
+        ...(userHistory[currentQ.id] || {}),
+        status: isCorrect ? 'correct' : 'incorrect',
+      }
+    };
+    
+    setUserHistory(newHistory);
+    syncData(newHistory, currentIndex, currentMode);
   };
 
-  // 集計
-  const stats = useMemo(() => {
-    const total = problemData.length;
-    const answeredCount = Object.keys(userAnswers).length;
-    const correctCount = Object.values(userAnswers).filter(a => a.isCorrect).length;
-    const reviewCount = Object.values(reviewFlags).filter(Boolean).length;
-    return { total, answeredCount, correctCount, reviewCount };
-  }, [userAnswers, reviewFlags]);
+  const toggleReview = () => {
+    const currentQ = filteredQuestions[currentIndex];
+    const newHistory = {
+      ...userHistory,
+      [currentQ.id]: {
+        ...(userHistory[currentQ.id] || {}),
+        needsReview: !userHistory[currentQ.id]?.needsReview,
+      }
+    };
+    setUserHistory(newHistory);
+    syncData(newHistory);
+  };
 
-  // --- 画面レンダリング ---
+  const handleNext = () => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < filteredQuestions.length) {
+      setCurrentIndex(nextIndex);
+      setSelectedOption(null);
+      setShowExplanation(false);
+      syncData(userHistory, nextIndex, currentMode);
+    } else {
+      syncData(userHistory, 0, ''); // Reset progress on completion
+      setView('result');
+    }
+  };
 
-  if (currentScreen === 'menu') {
-    const pieData = [
-      { name: '正解', value: stats.correctCount, color: '#4ade80' },
-      { name: '不正解/未回答', value: stats.total - stats.correctCount, color: '#f87171' },
-    ];
+  const goHome = () => {
+    if (view === 'quiz') {
+      syncData(userHistory, currentIndex, currentMode);
+    }
+    setView('start');
+  };
 
+  // --- Screens ---
+
+  if (view === 'login') {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 p-4 font-sans">
-        <div className="max-w-xl mx-auto space-y-6">
-          <header className="text-center py-6">
-            <h1 className="text-2xl font-bold text-slate-700">財務諸表 2-1</h1>
-            <p className="text-slate-500 text-sm mt-1">過去問セレクト演習</p>
-          </header>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+          <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">財務諸表マスター</h1>
+          <p className="text-sm text-gray-600 mb-4">同期用の合言葉（ユーザーID）を入力してください。</p>
+          <input
+            type="text"
+            className="w-full border border-gray-300 rounded p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="合言葉を入力"
+            value={inputKey}
+            onChange={(e) => setInputKey(e.target.value)}
+          />
+          <button
+            onClick={handleLogin}
+            className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition"
+          >
+            学習を始める
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-          {/* ダッシュボード */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center">
-            <h2 className="text-lg font-semibold mb-4 w-full flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-500" /> 学習状況
-            </h2>
-            <div className="w-48 h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-2 gap-8 text-center mt-2 w-full">
-              <div>
-                <p className="text-2xl font-bold text-green-500">{stats.correctCount}<span className="text-sm text-gray-400">/{stats.total}</span></p>
-                <p className="text-xs text-gray-500">正解数</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-orange-500">{stats.reviewCount}</p>
-                <p className="text-xs text-gray-500">要復習</p>
-              </div>
-            </div>
-          </div>
+  if (view === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-xl font-bold text-gray-500 animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
-          {/* モード選択 */}
-          <div className="grid gap-3">
-            <button 
-              onClick={() => startQuiz('all')}
-              className="flex items-center justify-between p-4 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 transition active:scale-95"
+  if (view === 'resume') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">続きから再開しますか？</h2>
+          <p className="text-gray-600 mb-6">
+            前回は「{progressMode === 'all' ? 'すべての問題' : progressMode === 'wrong' ? '前回不正解のみ' : '要復習のみ'}」モードの<br/>
+            <span className="font-bold">【問題 {progressIndex + 1}】</span> まで進んでいます。
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={() => handleResume(true)}
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded flex items-center justify-center gap-2 hover:bg-blue-700"
             >
-              <div className="flex items-center gap-3">
-                <Play className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-bold">全ての問題を解く</div>
-                  <div className="text-xs opacity-90">全{problemData.length}問</div>
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5" />
+              <Play className="w-5 h-5" />
+              続きから再開する
             </button>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => startQuiz('wrong')}
-                className="flex flex-col items-center justify-center p-4 bg-white border-2 border-red-100 text-red-600 rounded-xl hover:bg-red-50 transition active:scale-95"
-              >
-                <RotateCcw className="w-6 h-6 mb-2" />
-                <span className="font-bold text-sm">前回 × のみ</span>
-              </button>
-              <button 
-                onClick={() => startQuiz('review')}
-                className="flex flex-col items-center justify-center p-4 bg-white border-2 border-orange-100 text-orange-600 rounded-xl hover:bg-orange-50 transition active:scale-95"
-              >
-                <CheckSquare className="w-6 h-6 mb-2" />
-                <span className="font-bold text-sm">要復習のみ</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 問題一覧リスト */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-4 bg-slate-50 border-b flex items-center gap-2">
-              <List className="w-4 h-4 text-slate-500" />
-              <h3 className="font-semibold text-slate-700 text-sm">問題一覧</h3>
-            </div>
-            <div className="max-h-64 overflow-y-auto divide-y">
-              {problemData.map((p, idx) => {
-                const hist = userAnswers[p.id];
-                const isReview = reviewFlags[p.id];
-                return (
-                  <div key={p.id} className="p-3 flex items-center justify-between hover:bg-slate-50 text-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-xs text-gray-500 font-mono">
-                        {p.id}
-                      </span>
-                      <span className="truncate max-w-[200px] text-slate-600">
-                        {p.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isReview && <AlertCircle className="w-4 h-4 text-orange-400" />}
-                      {hist ? (
-                        hist.isCorrect ? 
-                          <CheckCircle className="w-4 h-4 text-green-500" /> : 
-                          <XCircle className="w-4 h-4 text-red-500" />
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <button
+              onClick={() => handleResume(false)}
+              className="w-full bg-gray-200 text-gray-700 font-bold py-3 rounded flex items-center justify-center gap-2 hover:bg-gray-300"
+            >
+              <RotateCcw className="w-5 h-5" />
+              最初から始める
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (currentScreen === 'quiz') {
-    const problem = filteredProblems[currentProblemIndex];
-    const isLast = currentProblemIndex === filteredProblems.length - 1;
-    const progress = ((currentProblemIndex + 1) / filteredProblems.length) * 100;
+  if (view === 'start') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 max-w-lg mx-auto">
+        <div className="bg-white rounded-xl shadow p-6 mt-8">
+          <h1 className="text-2xl font-bold text-center text-blue-600 mb-2">財務諸表マスター</h1>
+          <p className="text-center text-gray-500 text-sm mb-8">ID: {userId}</p>
+          
+          <div className="space-y-4">
+            <button onClick={() => startQuiz('all')} className="w-full bg-blue-50 text-blue-700 border border-blue-200 p-4 rounded-lg font-bold flex items-center justify-between hover:bg-blue-100">
+              <span className="flex items-center gap-2"><BookOpen className="w-5 h-5" /> すべての問題</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <button onClick={() => startQuiz('wrong')} className="w-full bg-red-50 text-red-700 border border-red-200 p-4 rounded-lg font-bold flex items-center justify-between hover:bg-red-100">
+              <span className="flex items-center gap-2"><X className="w-5 h-5" /> 前回不正解の問題のみ</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <button onClick={() => startQuiz('review')} className="w-full bg-orange-50 text-orange-700 border border-orange-200 p-4 rounded-lg font-bold flex items-center justify-between hover:bg-orange-100">
+              <span className="flex items-center gap-2"><Save className="w-5 h-5" /> 要復習の問題のみ</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <hr className="my-4" />
+            <button onClick={() => setView('history')} className="w-full bg-gray-100 text-gray-700 p-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-200">
+              <List className="w-5 h-5" /> 学習履歴を確認
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'history') {
+    const total = quizData.length;
+    const correctCount = quizData.filter(q => userHistory[q.id]?.status === 'correct').length;
+    const wrongCount = quizData.filter(q => userHistory[q.id]?.status === 'incorrect').length;
+    const unattempted = total - correctCount - wrongCount;
+
+    const chartData = [
+      { name: '正解', value: correctCount, color: '#10B981' },
+      { name: '不正解', value: wrongCount, color: '#EF4444' },
+      { name: '未解答', value: unattempted, color: '#D1D5DB' }
+    ];
 
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans">
-        {/* ヘッダー */}
-        <div className="sticky top-0 bg-white shadow-sm z-10">
-          <div className="h-1 bg-gray-200 w-full">
-            <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }}></div>
+      <div className="min-h-screen bg-gray-50 p-4 pb-20 max-w-2xl mx-auto">
+        <div className="flex items-center mb-6">
+          <button onClick={goHome} className="text-blue-600 flex items-center gap-1 font-bold">
+            <Home className="w-5 h-5" /> ホーム
+          </button>
+          <h2 className="text-xl font-bold mx-auto">学習履歴</h2>
+          <div className="w-16"></div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
+          <h3 className="text-lg font-bold text-center mb-4">全体正答率</h3>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          <div className="flex items-center justify-between p-4 max-w-2xl mx-auto">
-            <button onClick={() => setCurrentScreen('menu')} className="text-sm text-gray-500 hover:text-gray-800">中断する</button>
-            <span className="font-bold text-slate-700">Q. {currentProblemIndex + 1} / {filteredProblems.length}</span>
-            <span className="text-xs text-blue-600 font-medium px-2 py-1 bg-blue-50 rounded-full">{problem.category}</span>
+          <div className="flex justify-center gap-4 text-sm font-bold">
+            <span className="text-green-500">正解: {correctCount}</span>
+            <span className="text-red-500">不正解: {wrongCount}</span>
+            <span className="text-gray-500">未解答: {unattempted}</span>
           </div>
         </div>
 
-        <div className="max-w-2xl mx-auto p-4 space-y-6">
-          {/* 問題文 */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <p className="text-lg font-medium leading-relaxed whitespace-pre-wrap">{problem.question}</p>
+        <div className="space-y-3">
+          {quizData.map((q, idx) => {
+            const h = userHistory[q.id] || {};
+            return (
+              <div key={q.id} className="bg-white rounded shadow p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">第{idx + 1}問 ({q.year})</div>
+                  <div className="font-bold text-sm line-clamp-1">{q.title}</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {h.status === 'correct' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><Check className="w-3 h-3"/> 正解</span>}
+                  {h.status === 'incorrect' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><X className="w-3 h-3"/> 不正解</span>}
+                  {!h.status && <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs font-bold">未解答</span>}
+                  {h.needsReview && <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded text-xs font-bold">要復習</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'result') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+          <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">完了しました！</h2>
+          <p className="text-gray-600 mb-8">すべての問題に解答しました。</p>
+          <button onClick={goHome} className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">
+            ホームに戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'quiz') {
+    const currentQ = filteredQuestions[currentIndex];
+    const isCorrect = selectedOption === currentQ?.answerIndex;
+    const needsReview = userHistory[currentQ?.id]?.needsReview || false;
+
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        {/* Header */}
+        <div className="bg-white shadow-sm p-4 sticky top-0 z-10 flex items-center justify-between">
+          <button onClick={goHome} className="text-gray-500 hover:text-gray-800">
+            <Home className="w-6 h-6" />
+          </button>
+          <div className="font-bold text-gray-700">
+            問題 {currentIndex + 1} / {filteredQuestions.length}
+          </div>
+          <div className="w-6"></div> {/* Spacer */}
+        </div>
+
+        <div className="p-4 max-w-2xl mx-auto mt-4">
+          {/* Question */}
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{currentQ.title}</span>
+              <span className="text-xs text-gray-500">{currentQ.year}</span>
+            </div>
+            <p className="text-gray-800 whitespace-pre-wrap">{currentQ.question}</p>
           </div>
 
-          {/* 選択肢 */}
-          <div className="grid gap-3">
-            {problem.options.map((opt, idx) => {
-              let btnClass = "p-4 text-left rounded-xl border-2 transition-all ";
-              if (showExplanation) {
-                if (idx === problem.correctAnswer) {
-                  btnClass += "bg-green-50 border-green-500 text-green-800";
-                } else if (idx === selectedOption) {
-                  btnClass += "bg-red-50 border-red-500 text-red-800";
-                } else {
-                  btnClass += "bg-white border-transparent shadow-sm opacity-50";
-                }
+          {/* Options */}
+          <div className="space-y-3">
+            {currentQ.options.map((opt, idx) => {
+              let btnClass = "w-full text-left p-4 rounded-xl border-2 transition-all ";
+              if (!showExplanation) {
+                btnClass += "border-gray-200 bg-white hover:border-blue-300";
               } else {
-                btnClass += "bg-white border-transparent shadow-sm hover:border-blue-200 active:scale-[0.99]";
+                if (idx === currentQ.answerIndex) {
+                  btnClass += "border-green-500 bg-green-50";
+                } else if (idx === selectedOption) {
+                  btnClass += "border-red-500 bg-red-50";
+                } else {
+                  btnClass += "border-gray-200 bg-white opacity-50";
+                }
               }
 
               return (
-                <button 
+                <button
                   key={idx}
-                  disabled={showExplanation}
                   onClick={() => handleAnswer(idx)}
+                  disabled={showExplanation}
                   className={btnClass}
                 >
-                  <div className="flex gap-3">
-                    <span className="font-bold font-mono text-gray-400">{['ア','イ','ウ','エ'][idx]}</span>
-                    <span>{opt}</span>
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-6 mt-0.5 font-bold text-gray-400">{idx + 1}.</div>
+                    <div className="text-sm text-gray-800">{opt}</div>
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {/* 解説エリア */}
+          {/* Explanation */}
           {showExplanation && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className={`p-4 rounded-xl mb-4 text-center font-bold text-white shadow-md ${selectedOption === problem.correctAnswer ? 'bg-green-500' : 'bg-red-500'}`}>
-                {selectedOption === problem.correctAnswer ? '正解！' : '不正解...'}
-              </div>
-
-              <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 shadow-sm text-slate-800">
-                <div className="flex items-center gap-2 mb-3 text-blue-800 font-bold border-b border-blue-200 pb-2">
-                  <BookOpen className="w-5 h-5" /> 解説
+            <div className="mt-8 animate-fade-in">
+              <div className={`p-4 rounded-t-xl text-white font-bold flex items-center justify-between ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+                <div className="flex items-center gap-2">
+                  {isCorrect ? <Check className="w-6 h-6" /> : <X className="w-6 h-6" />}
+                  <span className="text-lg">{isCorrect ? '正解！' : '不正解'}</span>
                 </div>
-                <div 
-                  className="text-sm leading-relaxed explanation-content"
-                  dangerouslySetInnerHTML={{ __html: problem.explanation }} 
-                />
+                <label className="flex items-center gap-2 cursor-pointer bg-white/20 px-3 py-1 rounded hover:bg-white/30 transition">
+                  <input type="checkbox" checked={needsReview} onChange={toggleReview} className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500 border-gray-300" />
+                  <span className="text-sm">要復習</span>
+                </label>
+              </div>
+              <div className="bg-white border border-t-0 border-gray-200 rounded-b-xl p-6 shadow-sm">
+                <div className="font-bold text-lg mb-4 text-gray-800 border-b pb-2">解説</div>
+                <div className="text-gray-700">{currentQ.explanation}</div>
               </div>
 
-              {/* 復習チェック */}
-              <label className="flex items-center gap-3 p-4 bg-white mt-4 rounded-xl shadow-sm border border-orange-100 cursor-pointer hover:bg-orange-50 transition">
-                <input 
-                  type="checkbox" 
-                  checked={!!reviewFlags[problem.id]} 
-                  onChange={() => toggleReview(problem.id)}
-                  className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500"
-                />
-                <span className="font-bold text-slate-700">あとで復習する（チェック）</span>
-              </label>
-
-              {/* 次へボタン */}
-              <button 
-                onClick={nextProblem}
-                className="w-full mt-6 py-4 bg-slate-800 text-white font-bold rounded-xl shadow-lg hover:bg-slate-900 transition active:scale-95 flex items-center justify-center gap-2"
+              <button
+                onClick={handleNext}
+                className="mt-6 w-full bg-blue-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition"
               >
-                {isLast ? '結果を見る' : '次の問題へ'} <ArrowRight className="w-5 h-5" />
+                次の問題へ <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  if (currentScreen === 'result') {
-    const sessionCorrect = filteredProblems.filter(p => {
-       const h = userAnswers[p.id];
-       return h && h.isCorrect;
-    }).length;
-    
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center space-y-6">
-          <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-            <Trophy className="w-10 h-10 text-yellow-500" />
-          </div>
-          
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">お疲れ様でした！</h2>
-            <p className="text-slate-500 mt-2">今回の正解率</p>
-            <div className="text-5xl font-black text-blue-600 mt-2">
-              {Math.round((sessionCorrect / filteredProblems.length) * 100)}%
-            </div>
-            <p className="text-sm text-gray-400 mt-1">
-              {sessionCorrect} / {filteredProblems.length} 問正解
-            </p>
-          </div>
-
-          <button 
-            onClick={() => setCurrentScreen('menu')}
-            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700 transition"
-          >
-            メニューに戻る
-          </button>
         </div>
       </div>
     );
